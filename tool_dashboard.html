@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block title %}{{ tool_name }} Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-users"></i> {{ tool_name }} Dashboard</h1>
+    <div>
+        <input type="text" id="searchBox" class="form-control" placeholder="Search member..." onkeyup="filterMembers()">
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card kpi-card">
+            <div class="card-body">
+                <h6 class="text-muted">Total Members</h6>
+                <h2>{{ total_members }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card kpi-card">
+            <div class="card-body">
+                <h6 class="text-muted">Average Billability (Current Month)</h6>
+                <h2>{{ avg_billability }}%</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Member Cards -->
+<div class="row" id="memberCards">
+    {% for member in members %}
+    <div class="col-md-6 col-lg-4 mb-4 member-card-item" data-name="{{ member.Employee_Name|lower }}">
+        <div class="card member-card h-100" onclick="location.href='/member/{{ member.Employee_ID }}'">
+            <div class="card-body">
+                <h5 class="card-title">{{ member.Employee_Name }}</h5>
+                <p class="text-muted">{{ member.Role }}</p>
+                
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Current Month:</span>
+                        <strong class="{% if member.current_billability >= 80 %}text-success{% elif member.current_billability >= 60 %}text-warning{% else %}text-danger{% endif %}">
+                            {{ member.current_billability }}%
+                        </strong>
+                    </div>
+                    <div class="progress mt-1">
+                        <div class="progress-bar {% if member.current_billability >= 80 %}bg-success{% elif member.current_billability >= 60 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             style="width: {{ member.current_billability }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <small class="text-muted">Yearly Trend</small>
+                    <div class="chart-container">
+                        <canvas id="trend-{{ member.Employee_ID }}"></canvas>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between text-center border-top pt-2">
+                    <div>
+                        <small class="text-muted">Current Projects</small>
+                        <div class="fw-bold">{{ member.current_projects }}</div>
+                    </div>
+                    <div>
+                        <small class="text-muted">Total Projects (2024)</small>
+                        <div class="fw-bold">{{ member.yearly_projects }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Render trend charts with fixed dimensions
+    {% for member in members %}
+    new Chart(document.getElementById('trend-{{ member.Employee_ID }}'), {
+        type: 'line',
+        data: {
+            labels: {{ member.trend|map(attribute='month_name')|list|tojson }},
+            datasets: [{
+                data: {{ member.trend|map(attribute='billability')|list|tojson }},
+                borderColor: '#0070AD',
+                backgroundColor: 'rgba(0, 112, 173, 0.1)',
+                borderWidth: 2,
+                pointRadius: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { 
+                legend: { display: false },
+                tooltip: {
+                    enabled: true,
+                    callbacks: {
+                        label: function(context) {
+                            return context.parsed.y + '%';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: { 
+                    beginAtZero: true, 
+                    max: 100, 
+                    display: true,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        },
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: true,
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: { 
+                    display: true,
+                    ticks: {
+                        font: {
+                            size: 10
+                        }
+                    },
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+    {% endfor %}
+    
+    function filterMembers() {
+        const search = document.getElementById('searchBox').value.toLowerCase();
+        const cards = document.querySelectorAll('.member-card-item');
+        
+        cards.forEach(card => {
+            const name = card.dataset.name;
+            card.style.display = name.includes(search) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

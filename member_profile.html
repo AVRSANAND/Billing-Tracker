@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+
+{% block title %}{{ employee.Employee_Name }} - Profile{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="/tool/{{ employee.Tool }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to {{ employee.Tool }}
+    </a>
+</div>
+
+<!-- Employee Header -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-8">
+                <h2>{{ employee.Employee_Name }}</h2>
+                <p class="text-muted">{{ employee.Role }} • {{ employee.Tool }}</p>
+                <p><small class="text-muted">Joined: {{ employee.Joining_Date }}</small></p>
+            </div>
+            <div class="col-md-4 text-end">
+                <h3>{{ yearly_billability }}%</h3>
+                <p class="text-muted">Yearly Billability</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Trend Chart -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-chart-line"></i> Monthly Billability Trend</h5>
+    </div>
+    <div class="card-body">
+        <canvas id="monthlyChart" height="100"></canvas>
+    </div>
+</div>
+
+<!-- Projects -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-project-diagram"></i> Projects</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Status</th>
+                        <th>Period</th>
+                        <th>Billed Days</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for project in projects %}
+                    <tr>
+                        <td>{{ project.Project_Name }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if project.Project_Status == 'Ongoing' %}bg-success
+                                {% elif project.Project_Status == 'Upcoming' %}bg-warning
+                                {% else %}bg-secondary{% endif %}">
+                                {{ project.Project_Status }}
+                            </span>
+                        </td>
+                        <td>{{ project.Start_Date }} to {{ project.End_Date }}</td>
+                        <td><span class="badge bg-primary">{{ project.billed_days }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Yearly Contribution Grid -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-calendar"></i> Yearly Billing Calendar (GitHub Style)</h5>
+    </div>
+    <div class="card-body">
+        <div class="contribution-grid">
+            {% set weeks = yearly_grid|groupby('week') %}
+            {% for week, days in weeks %}
+            <div class="contribution-week">
+                {% for day in days %}
+                <div class="contribution-day 
+                    {% if day.is_weekend %}weekend
+                    {% elif day.is_billed %}billed
+                    {% else %}not-billed{% endif %}"
+                     title="{{ day.date }}{% if day.is_billed %} - Billed{% endif %}"
+                     data-date="{{ day.date }}">
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="mt-3 text-center">
+            <small class="text-muted">
+                <span class="contribution-day billed d-inline-block me-2"></span> Billed
+                <span class="contribution-day not-billed d-inline-block ms-3 me-2"></span> Not Billed
+                <span class="contribution-day weekend d-inline-block ms-3 me-2"></span> Weekend
+            </small>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Monthly trend chart
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: {{ monthly_trend|map(attribute='month_name')|list|tojson }},
+            datasets: [{
+                label: 'Billability %',
+                data: {{ monthly_trend|map(attribute='billability')|list|tojson }},
+                backgroundColor: function(context) {
+                    const value = context.parsed.y;
+                    if (value >= 80) return '#00A885';
+                    if (value >= 60) return '#FFB81C';
+                    return '#E4032E';
+                },
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %}

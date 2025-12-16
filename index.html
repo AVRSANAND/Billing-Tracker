@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}Home - Billability Tracker{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Project Overview</h1>
+
+<!-- Ongoing Projects -->
+<section class="mb-5">
+    <h3 class="section-title"><i class="fas fa-play-circle text-success"></i> Ongoing Projects</h3>
+    <div class="row">
+        {% for project in ongoing_projects %}
+        <div class="col-md-4 mb-3">
+            <div class="project-card card h-100" onclick="showProjectDetails({{ project.Project_ID }})">
+                <div class="card-body">
+                    <h5 class="card-title">{{ project.Project_Name }}</h5>
+                    <p class="card-text">
+                        <span class="badge bg-primary">{{ project.Tool }}</span>
+                    </p>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> 
+                        {{ project.Start_Date.strftime('%b %d, %Y') }} - 
+                        {{ project.End_Date.strftime('%b %d, %Y') }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Upcoming Projects -->
+<section class="mb-5">
+    <h3 class="section-title"><i class="fas fa-clock text-warning"></i> Upcoming Projects</h3>
+    <div class="row">
+        {% for project in upcoming_projects %}
+        <div class="col-md-4 mb-3">
+            <div class="project-card card h-100" onclick="showProjectDetails({{ project.Project_ID }})">
+                <div class="card-body">
+                    <h5 class="card-title">{{ project.Project_Name }}</h5>
+                    <p class="card-text">
+                        <span class="badge bg-warning text-dark">{{ project.Tool }}</span>
+                    </p>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar"></i> 
+                        Starts: {{ project.Start_Date.strftime('%b %d, %Y') }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Completed Projects -->
+<section class="mb-5">
+    <h3 class="section-title"><i class="fas fa-check-circle text-secondary"></i> Completed Projects</h3>
+    <div class="row">
+        {% for project in completed_projects %}
+        <div class="col-md-4 mb-3">
+            <div class="project-card card h-100" onclick="showProjectDetails({{ project.Project_ID }})">
+                <div class="card-body">
+                    <h5 class="card-title">{{ project.Project_Name }}</h5>
+                    <p class="card-text">
+                        <span class="badge bg-secondary">{{ project.Tool }}</span>
+                    </p>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar-check"></i> 
+                        Completed: {{ project.End_Date.strftime('%b %d, %Y') }}
+                    </small>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- Project Details Modal -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="projectModalTitle"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="projectModalBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const projectModal = new bootstrap.Modal(document.getElementById('projectModal'));
+    
+    function showProjectDetails(projectId) {
+        document.getElementById('projectModalBody').innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border" role="status"></div>
+            </div>
+        `;
+        projectModal.show();
+        
+        fetch(`/api/project/${projectId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    displayProjectDetails(data.project, data.members);
+                } else {
+                    document.getElementById('projectModalBody').innerHTML = 
+                        `<div class="alert alert-danger">Error: ${data.error}</div>`;
+                }
+            });
+    }
+    
+    function displayProjectDetails(project, members) {
+        document.getElementById('projectModalTitle').textContent = project.Project_Name;
+        
+        let html = `
+            <div class="mb-3">
+                <p><strong>Tool:</strong> <span class="badge bg-primary">${project.Tool}</span></p>
+                <p><strong>Status:</strong> <span class="badge bg-info">${project.Project_Status}</span></p>
+                <p><strong>Duration:</strong> ${project.Start_Date} to ${project.End_Date}</p>
+            </div>
+            <hr>
+            <h6>Team Members</h6>
+        `;
+        
+        for (const [tool, toolMembers] of Object.entries(members)) {
+            html += `
+                <div class="mb-3">
+                    <h6 class="text-primary">${tool}</h6>
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Period</th>
+                                <th>Billed Days</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            toolMembers.forEach(member => {
+                html += `
+                    <tr>
+                        <td><a href="/member/${member.Employee_ID}">${member.Employee_Name}</a></td>
+                        <td>${member.Role}</td>
+                        <td>${member.Billing_Start_Date} to ${member.Billing_End_Date}</td>
+                        <td><span class="badge bg-success">${member.billed_days}</span></td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        document.getElementById('projectModalBody').innerHTML = html;
+    }
+</script>
+{% endblock %}
